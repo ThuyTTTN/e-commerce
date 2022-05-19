@@ -1,42 +1,43 @@
-const router = require('express').Router();
-const { UPSERT } = require('sequelize/types/lib/query-types');
-const { Product, Category, Tag, ProductTag } = require('../../models');
+const router = require("express").Router();
+const { Product, Category, Tag, ProductTag } = require("../../models");
 
 // The `/api/products` endpoint
 
 // get all products
-router.get('/', (req, res) => {
+router.get("/", (req, res) => {
   // find all products
   // be sure to include its associated Category and Tag data
   Product.findAll({
-    include: [Category, Tag]})
-    .then(products => res.json(products))
+    include: [
+      Category,
+      {
+        model: Tag,
+        through: ProductTag,
+      },
+    ],
+  }).then((products) => res.json(products));
 });
 
 // get one product
-router.get('/:id', (req, res) => {
+router.get("/:id", (req, res) => {
   // find a single product by its `id`
   // be sure to include its associated Category and Tag data
   Product.findOne({
     where: {
-      id: req.params.id
+      id: req.params.id,
     },
     include: [
-      { 
-        model: Category,
-        attributes: ['category_name']
-      },
+      Category,
       {
         model: Tag,
-        attributes: ['tag_name']
-      }
-    ]
-  })
-  .then(product => res.json(product))
+        through: ProductTag,
+      },
+    ],
+  }).then((product) => res.json(product));
 });
 
 // create new product
-router.post('/', (req, res) => {
+router.post("/", (req, res) => {
   /* req.body should look like this...
     {
       product_name: "Basketball",
@@ -45,15 +46,10 @@ router.post('/', (req, res) => {
       tagIds: [1, 2, 3, 4]
     }
   */
-  Product.create(req.body) ({
-    product_name: "Sunglasses",
-    price: 20.00,
-    stock: 10,
-    tagIds: [3, 4, 6, 7]
-  })
+  Product.create(req.body)
     .then((product) => {
       // if there's product tags, we need to create pairings to bulk create in the ProductTag model
-      if (req.body.tagIds.length) {
+      if (req.body.tagIds && req.body.tagIds.length) {
         const productTagIdArr = req.body.tagIds.map((tag_id) => {
           return {
             product_id: product.id,
@@ -73,7 +69,7 @@ router.post('/', (req, res) => {
 });
 
 // update product
-router.put('/:id', (req, res) => {
+router.put("/:id", (req, res) => {
   // update product data
   Product.update(req.body, {
     where: {
@@ -114,24 +110,24 @@ router.put('/:id', (req, res) => {
     });
 });
 
-router.delete('/:id', (req, res) => {
+router.delete("/:id", (req, res) => {
   // delete one product by its `id` value
-  User.destroy({
+  Product.destroy({
     where: {
-      id: req.params.id
-    }
+      id: req.params.id,
+    },
   })
-  .then((category) => {
-    if (!category) {
-      res.status(404).json({ message: "No product found with this id" });
-      return;
-    }
-    res.json(category);
-  })
-  .catch((err) => {
-    console.log(err);
-    res.status(500).json(err);
-  });
+    .then((category) => {
+      if (!category) {
+        res.status(404).json({ message: "No product found with this id" });
+        return;
+      }
+      res.json({message: 'This Product was deleted!'});
+    })
+    .catch((err) => {
+      console.log(err);
+      res.status(500).json(err);
+    });
 });
 
 module.exports = router;
